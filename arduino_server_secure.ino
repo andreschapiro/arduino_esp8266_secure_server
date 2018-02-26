@@ -48,10 +48,10 @@ void loop()
 
   if (whitelisted != 0){
     if (authenticate == 0){
-      addToList(client.remoteIP(), WHITE_LIST)
+      addToList(client.remoteIP(), WHITE_LIST);
     }
     else {
-      addToList(client.remoteIP(), BLACK_LIST)
+      addToList(client.remoteIP(), BLACK_LIST);
       return;
     }
   }
@@ -103,7 +103,7 @@ void loop()
 }
 
 int checkList(String remoteIP, String list, const int lenList){
-  for (i=0;i<=(lenList-1);i++){
+  for (int i=0;i<=(lenList-1);i++){
     if (remoteIP==list[i]) {
       return 1;
     } else {
