@@ -12,6 +12,7 @@ const String PASSWORD = "NotDefault";
 
 const int WHITE_LENGTH = 3;
 const int BLACK_LENGTH = 10;
+const int MAX_ATTEMPTS = 3;
 
 String WHITE_LIST[WHITE_LENGTH];
 String BLACK_LIST[BLACK_LENGTH];
@@ -45,8 +46,14 @@ void loop()
 
   int whitelisted = checkList(client.remoteIP(), WHITE_LIST, WHITE_LENGTH);
 
-  if (whitelisted == 0){
-    
+  if (whitelisted != 0){
+    if (authenticate == 0){
+      addToList(client.remoteIP(), WHITE_LIST)
+    }
+    else {
+      addToList(client.remoteIP(), BLACK_LIST)
+      return;
+    }
   }
 
   // Read the first line of the request
@@ -95,18 +102,29 @@ void loop()
   // when the function returns and 'client' object is detroyed
 }
 
-void checkList(String remoteIP, String list, const int lenList){
+int checkList(String remoteIP, String list, const int lenList){
   for (i=0;i<=(lenList-1);i++){
     if (remoteIP==list[i]) {
       return 1;
-  } else {
-    return 0;
+    } else {
+      return 0;
     }
   }
 }
 
 void addToList(String remoteIP, String list){
   
+}
+
+int authenticate(String username, String password){
+  String s = "HTTP/1.1 200 OK\r\n";
+  s += "Content-Type: text/html\r\n\r\n";
+  s += "<!DOCTYPE HTML>\r\n<html>\r\n";
+  s += "<form action=\"/auth\">\r\n";
+  s += "Username: <input type=\"text\" name=\"username\"><br>\r\n";
+  s += "Password: <input type=\"password\" name=\"password\"><br><br>\r\n";
+  s += "<input type=\"submit\" value=\"Submit\"><br><br>\r\n";
+  s += "</form>";
 }
 
 void connectWiFi()
