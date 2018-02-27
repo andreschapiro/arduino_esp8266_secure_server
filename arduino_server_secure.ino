@@ -12,13 +12,14 @@ const String PASSWORD = "NotDefault";
 
 const int WHITE_LENGTH = 3;
 const int BLACK_LENGTH = 10;
+
+const int WHITE_COUNT = 0;
+const int BLACK_COUNT = 0;
+
 const int MAX_ATTEMPTS = 3;
 
-const int WHITE_COUNTER = 0;
-const int BLACK_COUNTER = 0;
-
-String WHITE_LIST[WHITE_LENGTH];
-String BLACK_LIST[BLACK_LENGTH];
+char WHITE_LIST[WHITE_LENGTH];
+char BLACK_LIST[BLACK_LENGTH];
 
 WiFiServer server(80);
 
@@ -38,32 +39,27 @@ void loop()
     return;
   }
 
-  Serial.println(ALLOWED_IP);
-  Serial.println(client.remoteIP().toString());
+  char clientIP = convertIP(client.remoteIP().toString());
+  
+//  Serial.println(ALLOWED_IP);
+//  Serial.println(client.remoteIP().toString());
 
-  int blacklisted = checkList(client.remoteIP(), BLACK_LIST, BLACK_LENGTH);
+  int blacklisted = checkList(clientIP, BLACK_LIST, BLACK_LENGTH);
   
   if (blacklisted == 1){
     return;
   }
 
-  int whitelisted = checkList(client.remoteIP(), WHITE_LIST, WHITE_LENGTH);
+  int whitelisted = checkList(clientIP, WHITE_LIST, WHITE_LENGTH);
 
-<<<<<<< HEAD
-  if (whitelisted == 0){
-    // Run authenticate function
-    // If authenticated returns 0, add ip to blacklist
-    // Else, add ip to whitelist
-=======
   if (whitelisted != 0){
     if (authenticate == 0){
-      addToList(client.remoteIP(), WHITE_LIST);
+      modifyList(clientIP, WHITE_LIST, WHITE_LENGTH, WHITE_COUNT); 
     }
     else {
-      addToList(client.remoteIP(), BLACK_LIST);
+      modifyList(clientIP, BLACK_LIST, BLACK_LENGTH, BLACK_COUNT);
       return;
     }
->>>>>>> 62ff09b52c620c0d229961d0bbf099bae6a1f740
   }
 
   // Read the first line of the request
@@ -112,24 +108,30 @@ void loop()
   // when the function returns and 'client' object is detroyed
 }
 
-int checkList(String remoteIP, String list, const int lenList){
+int checkList(char remoteIP, String list, const int lenList){
   for (int i=0;i<=(lenList-1);i++){
     if (remoteIP==list[i]) {
       return 1;
-    } else {
-      return 0;
     }
   }
+  return 0;
 }
 
-void modifyList(String remoteIP, String list, const int listLen, const int counter){
-  if (counter >= listLen){
+char convertIP(String strIP){
+  char charBuf[16];
+  char clientIP = strIP.toCharArray(charBuf,16);
+  return clientIP;
+}
+
+void modifyList(char remoteIP, String list, const int lenList, int counter){
+  if (counter >= lenList) {
     counter = 0;
   }
+  char charBuf[16];
+//  list[counter] = remoteIP.toCharArray(charBuf, 16);
   list[counter] = remoteIP;
   counter++;
-}  
-
+}
 
 int authenticate(String username, String password){
   String s = "HTTP/1.1 200 OK\r\n";
