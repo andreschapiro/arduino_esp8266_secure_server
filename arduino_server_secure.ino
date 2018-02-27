@@ -116,10 +116,9 @@ int checkList(String remoteIP, String list, const int lenList){
   for (int i=0;i<=(lenList-1);i++){
     if (remoteIP==list[i]) {
       return 1;
-    } else {
-      return 0;
     }
   }
+  return 0;
 }
 
 void modifyList(String remoteIP, String list, const int listLen, const int counter){
