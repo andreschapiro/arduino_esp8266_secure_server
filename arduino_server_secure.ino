@@ -13,6 +13,9 @@ const String PASSWORD = "NotDefault";
 const int WHITE_LENGTH = 3;
 const int BLACK_LENGTH = 10;
 
+const int WHITE_COUNTER = 0;
+const int BLACK_COUNTER = 0;
+
 String WHITE_LIST[WHITE_LENGTH];
 String BLACK_LIST[BLACK_LENGTH];
 
@@ -46,7 +49,9 @@ void loop()
   int whitelisted = checkList(client.remoteIP(), WHITE_LIST, WHITE_LENGTH);
 
   if (whitelisted == 0){
-    
+    // Run authenticate function
+    // If authenticated returns 0, add ip to blacklist
+    // Else, add ip to whitelist
   }
 
   // Read the first line of the request
@@ -105,9 +110,14 @@ void checkList(String remoteIP, String list, const int lenList){
   }
 }
 
-void addToList(String remoteIP, String list){
-  
-}
+void modifyList(String remoteIP, String list, const int listLen, const int counter){
+  if (counter >= listLen){
+    counter = 0;
+  }
+  list[counter] = remoteIP;
+  counter++;
+}  
+
 
 void connectWiFi()
 {
