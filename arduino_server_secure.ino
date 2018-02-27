@@ -49,21 +49,17 @@ void loop()
 
   int whitelisted = checkList(client.remoteIP(), WHITE_LIST, WHITE_LENGTH);
 
-<<<<<<< HEAD
   if (whitelisted == 0){
-    // Run authenticate function
-    // If authenticated returns 0, add ip to blacklist
+    // Run authenticate() function
+    // If authenticate() returns 0, add ip to blacklist and exit
     // Else, add ip to whitelist
-=======
-  if (whitelisted != 0){
     if (authenticate == 0){
-      addToList(client.remoteIP(), WHITE_LIST);
-    }
-    else {
       addToList(client.remoteIP(), BLACK_LIST);
       return;
     }
->>>>>>> 62ff09b52c620c0d229961d0bbf099bae6a1f740
+    else {
+      addToList(client.remoteIP(), WHITE_LIST);
+    }
   }
 
   // Read the first line of the request
@@ -135,7 +131,8 @@ int authenticate(String username, String password){
   String s = "HTTP/1.1 200 OK\r\n";
   s += "Content-Type: text/html\r\n\r\n";
   s += "<!DOCTYPE HTML>\r\n<html>\r\n";
-  s += "<form action=\"/auth\">\r\n";
+  //s += "<form action=\"/auth\">\r\n";
+  s += "<form action=\"/\">\r\n";
   s += "Username: <input type=\"text\" name=\"username\"><br>\r\n";
   s += "Password: <input type=\"password\" name=\"password\"><br><br>\r\n";
   s += "<input type=\"submit\" value=\"Submit\"><br><br>\r\n";
