@@ -39,25 +39,25 @@ void loop()
     return;
   }
 
-  char clientIP = convertIP(client.remoteIP().toString());
+  char * clientIP = convertIP(client.remoteIP().toString());
   
 //  Serial.println(ALLOWED_IP);
 //  Serial.println(client.remoteIP().toString());
 
-  int blacklisted = checkList(clientIP, BLACK_LIST, BLACK_LENGTH);
+  int blacklisted = checkList( * clientIP, BLACK_LIST, BLACK_LENGTH);
   
   if (blacklisted == 1){
     return;
   }
 
-  int whitelisted = checkList(clientIP, WHITE_LIST, WHITE_LENGTH);
+  int whitelisted = checkList( * clientIP, WHITE_LIST, WHITE_LENGTH);
 
   if (whitelisted != 0){
     if (authenticate == 0){
-      modifyList(clientIP, WHITE_LIST, WHITE_LENGTH, WHITE_COUNT); 
+      modifyList(* clientIP, WHITE_LIST, WHITE_LENGTH, WHITE_COUNT); 
     }
     else {
-      modifyList(clientIP, BLACK_LIST, BLACK_LENGTH, BLACK_COUNT);
+      modifyList(* clientIP, BLACK_LIST, BLACK_LENGTH, BLACK_COUNT);
       return;
     }
   }
@@ -117,10 +117,11 @@ int checkList(char remoteIP, String list, const int lenList){
   return 0;
 }
 
-char convertIP(String strIP){
-  char charBuf[16];
-  char clientIP = strIP.toCharArray(charBuf,16);
-  return clientIP;
+char * convertIP(String strIP){
+  char charBuf[17];
+  unsigned int len = 17;
+  strIP.toCharArray(charBuf,len);
+  return charBuf;
 }
 
 void modifyList(char remoteIP, String list, const int lenList, int counter){
@@ -180,7 +181,7 @@ void connectWiFi()
 
 void setupMDNS()
 {
-  if (!MDNS.begin("ACF-Thing")) 
+  if (!MDNS.begin("KL-Thing")) 
   {
     Serial.println("Error setting up MDNS responder!");
     while(1) { 
@@ -198,4 +199,3 @@ void initHardware()
   digitalWrite(LED_PIN, HIGH);
 
 }
-
