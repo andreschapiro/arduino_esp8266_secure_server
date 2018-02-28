@@ -1,8 +1,8 @@
 #include <ESP8266WiFi.h>
 #include <ESP8266mDNS.h>
 
-const char WiFiSSID[] = "slowold";
-const char WiFiPSK[] = "AfricaToto";
+const char WiFiSSID[] = "SOC-LAB";
+const char WiFiPSK[] = "itpsecurity";
 
 const int LED_PIN = 5; // Thing's onboard LED
 const String ALLOWED_IP = "192.168.20.128";
