@@ -12,13 +12,14 @@ const String PASSWORD = "NotDefault";
 
 const int WHITE_LENGTH = 3;
 const int BLACK_LENGTH = 10;
+
+const int WHITE_COUNT = 0;
+const int BLACK_COUNT = 0;
+
 const int MAX_ATTEMPTS = 3;
 
-const int WHITE_COUNTER = 0;
-const int BLACK_COUNTER = 0;
-
-String WHITE_LIST[WHITE_LENGTH];
-String BLACK_LIST[BLACK_LENGTH];
+char WHITE_LIST[WHITE_LENGTH];
+char BLACK_LIST[BLACK_LENGTH];
 
 WiFiServer server(80);
 
@@ -38,27 +39,26 @@ void loop()
     return;
   }
 
-  Serial.println(ALLOWED_IP);
-  Serial.println(client.remoteIP().toString());
+  char * clientIP = convertIP(client.remoteIP().toString());
+  
+//  Serial.println(ALLOWED_IP);
+//  Serial.println(client.remoteIP().toString());
 
-  int blacklisted = checkList(client.remoteIP(), BLACK_LIST, BLACK_LENGTH);
+  int blacklisted = checkList( * clientIP, BLACK_LIST, BLACK_LENGTH);
   
   if (blacklisted == 1){
     return;
   }
 
-  int whitelisted = checkList(client.remoteIP(), WHITE_LIST, WHITE_LENGTH);
+  int whitelisted = checkList( * clientIP, WHITE_LIST, WHITE_LENGTH);
 
-  if (whitelisted == 0){
-    // Run authenticate() function
-    // If authenticate() returns 0, add ip to blacklist and exit
-    // Else, add ip to whitelist
-    if (authenticate == 0){
-      addToList(client.remoteIP(), BLACK_LIST);
-      return;
+  if (whitelisted != 0){
+    if (authenticate(client) == 0){
+      modifyList(* clientIP, WHITE_LIST, WHITE_LENGTH, WHITE_COUNT); 
     }
     else {
-      addToList(client.remoteIP(), WHITE_LIST);
+      modifyList(* clientIP, BLACK_LIST, BLACK_LENGTH, BLACK_COUNT);
+      return;
     }
   }
 
@@ -108,35 +108,74 @@ void loop()
   // when the function returns and 'client' object is detroyed
 }
 
-int checkList(String remoteIP, String list, const int lenList){
+int checkList(char remoteIP, String list, const int lenList){
   for (int i=0;i<=(lenList-1);i++){
     if (remoteIP==list[i]) {
       return 1;
-    } else {
-      return 0;
     }
   }
+  return 0;
 }
 
-void modifyList(String remoteIP, String list, const int listLen, const int counter){
-  if (counter >= listLen){
+char * convertIP(String strIP){
+  char charBuf[17];
+  unsigned int len = 17;
+  strIP.toCharArray(charBuf,len);
+  return charBuf;
+}
+
+void modifyList(char remoteIP, String list, const int lenList, int counter){
+  if (counter >= lenList) {
     counter = 0;
   }
+  char charBuf[16];
+//  list[counter] = remoteIP.toCharArray(charBuf, 16);
   list[counter] = remoteIP;
   counter++;
-}  
+}
 
-
-int authenticate(String username, String password){
+int authenticate(WiFiClient client){
+  // HTML auth form
   String s = "HTTP/1.1 200 OK\r\n";
   s += "Content-Type: text/html\r\n\r\n";
   s += "<!DOCTYPE HTML>\r\n<html>\r\n";
-  //s += "<form action=\"/auth\">\r\n";
-  s += "<form action=\"/\">\r\n";
-  s += "Username: <input type=\"text\" name=\"username\"><br>\r\n";
-  s += "Password: <input type=\"password\" name=\"password\"><br><br>\r\n";
-  s += "<input type=\"submit\" value=\"Submit\"><br><br>\r\n";
-  s += "</form>";
+  s += "<form action='/submit' method='GET'>\r\n";
+  s += "Username: <input type='text' name='username'><br>\r\n";
+  s += "Password: <input type='password' name='password'><br><br>\r\n";
+  s += "<input type='submit' value='Submit'><br><br>\r\n";
+  s += "</form></html>";
+  
+  int attempts = 0;
+  // Loop until MAX_ATTEMPTS is exceeded
+  while (attempts <= MAX_ATTEMPTS){
+    WiFiClient client = server.available();
+    if (!client) {
+      continue;
+    }
+    client.flush();
+    client.print(s);
+    delay(1);
+    String req = client.readStringUntil('\r');
+    Serial.println(req);
+    if (req.indexOf("submit?username=NotAdmin&password=NotDefault") != -1){
+      return 1;
+    }
+    attempts++;
+    if (attempts > MAX_ATTEMPTS){
+      String s = "HTTP/1.1 200 OK\r\n";
+      s += "Content-Type: text/html\r\n\r\n";  
+      s += "<!DOCTYPE HTML>\r\n<html>\r\n";
+      s += "<h1> Failed Authentication </h1>";
+      s += "</html>";
+      client.flush();
+      client.print(s);
+      delay(1);
+      Serial.println("Client disonnected");
+      return 0;
+    }
+  }
+
+  
 }
 
 void connectWiFi()
@@ -175,7 +214,7 @@ void connectWiFi()
 
 void setupMDNS()
 {
-  if (!MDNS.begin("ACF-Thing")) 
+  if (!MDNS.begin("KL-Thing")) 
   {
     Serial.println("Error setting up MDNS responder!");
     while(1) { 
@@ -193,4 +232,3 @@ void initHardware()
   digitalWrite(LED_PIN, HIGH);
 
 }
-
