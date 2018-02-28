@@ -1,8 +1,8 @@
 #include <ESP8266WiFi.h>
 #include <ESP8266mDNS.h>
 
-const char WiFiSSID[] = "SOC-LAB";
-const char WiFiPSK[] = "itpsecurity";
+const char WiFiSSID[] = "slowold";
+const char WiFiPSK[] = "AfricaToto";
 
 const int LED_PIN = 5; // Thing's onboard LED
 const String ALLOWED_IP = "192.168.20.128";
@@ -29,8 +29,8 @@ void setup()
   connectWiFi();
   server.begin();
   setupMDNS();
-  clearList(WHITE_LIST, WHITE_LENGTH);
-  clearList(BLACK_LIST, BLACK_LENGTH);
+  initList(WHITE_LIST, WHITE_LENGTH);
+  initList(BLACK_LIST, BLACK_LENGTH);
 }
 
 void loop() 
@@ -41,24 +41,30 @@ void loop()
     return;
   }
 
+  // Convert IPAddress object to char *
+  char *clientIP = (char *)calloc(16, sizeof(char));
+  strcpy(clientIP, client.remoteIP().toString().c_str());
+  
+  // Print out status of White/Blacklist
   Serial.println("Whitelist:");
   printList(WHITE_LIST, WHITE_LENGTH);
   Serial.println("Blacklist:");
   printList(BLACK_LIST, BLACK_LENGTH);
-
-  char * clientIP = const_cast<char *>(client.remoteIP().toString().c_str());
-
+  
   int blacklisted = checkList(clientIP, BLACK_LIST, BLACK_LENGTH);
   
   if (blacklisted == 1){
+    Serial.println("Client IP in Blacklist, exiting...");
     return;
+  } else {
+    Serial.println("Client IP not in Blacklist");
   }
 
   int whitelisted = checkList(clientIP, WHITE_LIST, WHITE_LENGTH);
 
   // Client not in whitelist
   if (whitelisted == 0){
-    if (authenticate(client) == 1){
+    if (authenticate() == 1){
       delay(1);
       modifyList(clientIP, WHITE_LIST, WHITE_LENGTH, WHITE_COUNT);
     }
@@ -136,7 +142,6 @@ int checkList(char * clientIP, char ** list, const int lenList){
   return 0;
 }
 
-/*
 char * convertIP(String strIP){
   Serial.println(strIP);
   char charBuf[17];
@@ -144,8 +149,13 @@ char * convertIP(String strIP){
   strIP.toCharArray(charBuf,len);
   return charBuf;
 }
-*/
 
+/*
+ * Input: <clientIP> <list> <lenList> <counter>
+ * Output: <void>
+ * 
+ * Implements a circular queue, inserting <clientIP> into the oldest entry of <list>
+ */
 void modifyList(char * clientIP, char ** list, const int lenList, int counter){
   if (counter >= lenList) {
     counter = 0;
@@ -153,17 +163,26 @@ void modifyList(char * clientIP, char ** list, const int lenList, int counter){
   list[counter] = (char *)calloc(16, sizeof(char));
   list[counter] = clientIP;
   counter++;
-  printList(list, lenList);
 }
 
 /*
- * Clear out list memory
+ * Initialize memory for list
  */
-void clearList(char ** list, const int lenList){
-  free(list);
+void initList(char ** list, const int lenList){
   for(int i = 0; i < lenList; i++){
     list[i] = (char *)calloc(16, sizeof(char));
+    strcpy(list[i], "NULL");
   }
+}
+
+/*
+ * Free and reinit list
+ */
+void clearList(char ** list, const int lenList){
+  for(int i = 0; i < lenList; i++){
+    free(list[i]);
+  }
+  initList(list, lenList);
 }
 
 /*
@@ -171,13 +190,18 @@ void clearList(char ** list, const int lenList){
  */
 void printList(char ** list, const int lenList){
   for(int i = 0; i < lenList; i++){
-    if(list[i] != NULL){
+    if(strcmp(list[i], "NULL") != 0){
+      Serial.print("  [*] ");
       Serial.println(list[i]);
     }
   }
 }
 
-int authenticate(WiFiClient client){
+int authenticate(){
+  
+  // Counter to track authorization attempts
+  int attempts = 0;
+  
   // HTML auth form
   String s = "HTTP/1.1 200 OK\r\n";
   s += "Content-Type: text/html\r\n\r\n";
@@ -188,7 +212,7 @@ int authenticate(WiFiClient client){
   s += "<input type='submit' value='Submit'><br><br>\r\n";
   s += "</form></html>";
   
-  int attempts = 0;
+  
   // Loop until MAX_ATTEMPTS is exceeded
   while (attempts <= MAX_ATTEMPTS){
     WiFiClient client = server.available();
@@ -200,13 +224,13 @@ int authenticate(WiFiClient client){
     delay(1);
     String req = client.readStringUntil('\r');
     Serial.println(req);
+    Serial.print("Authentication Attempts: ");
     Serial.println(attempts);
-    Serial.println("Client disonnected");
     if (req.indexOf("submit?username=" + USERNAME + "&password=" + PASSWORD) != -1){
-      String s = "HTTP/1.1 200 OK\r\n";
-      s += "Content-Type: text/html\r\n\r\n";  
+      String s = "Content-Type: text/html\r\n\r\n";  
       s += "<!DOCTYPE HTML>\r\n<html>\r\n";
       s += "<h1> Your client has been authenticated </h1>";
+      s += "<p> <a href=/> Home </p>";
       s += "</html>";
       client.flush();
       client.print(s);
@@ -218,8 +242,7 @@ int authenticate(WiFiClient client){
 
     // Send message after 3 failed attempts
     if (attempts > MAX_ATTEMPTS){
-      String s = "HTTP/1.1 200 OK\r\n";
-      s += "Content-Type: text/html\r\n\r\n";  
+      String s = "Content-Type: text/html\r\n\r\n";  
       s += "<!DOCTYPE HTML>\r\n<html>\r\n";
       s += "<h1> Failed Authentication </h1>";
       s += "</html>";
