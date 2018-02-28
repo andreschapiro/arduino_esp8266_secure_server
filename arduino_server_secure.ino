@@ -13,13 +13,13 @@ const String PASSWORD = "NotDefault";
 const int WHITE_LENGTH = 3;
 const int BLACK_LENGTH = 10;
 
-const int WHITE_COUNT = 0;
-const int BLACK_COUNT = 0;
+int WHITE_COUNT = 0;
+int BLACK_COUNT = 0;
 
 const int MAX_ATTEMPTS = 3;
 
-char WHITE_LIST[WHITE_LENGTH];
-char BLACK_LIST[BLACK_LENGTH];
+char* WHITE_LIST[WHITE_LENGTH];
+char* BLACK_LIST[BLACK_LENGTH];
 
 WiFiServer server(80);
 
@@ -29,6 +29,8 @@ void setup()
   connectWiFi();
   server.begin();
   setupMDNS();
+  clearList(WHITE_LIST, WHITE_LENGTH);
+  clearList(BLACK_LIST, BLACK_LENGTH);
 }
 
 void loop() 
@@ -39,25 +41,30 @@ void loop()
     return;
   }
 
-  char * clientIP = convertIP(client.remoteIP().toString());
-  
-//  Serial.println(ALLOWED_IP);
-//  Serial.println(client.remoteIP().toString());
+  Serial.println("Whitelist:");
+  printList(WHITE_LIST, WHITE_LENGTH);
+  Serial.println("Blacklist:");
+  printList(BLACK_LIST, BLACK_LENGTH);
 
-  int blacklisted = checkList( * clientIP, BLACK_LIST, BLACK_LENGTH);
+  char * clientIP = const_cast<char *>(client.remoteIP().toString().c_str());
+
+  int blacklisted = checkList(clientIP, BLACK_LIST, BLACK_LENGTH);
   
   if (blacklisted == 1){
     return;
   }
 
-  int whitelisted = checkList( * clientIP, WHITE_LIST, WHITE_LENGTH);
+  int whitelisted = checkList(clientIP, WHITE_LIST, WHITE_LENGTH);
 
-  if (whitelisted != 0){
-    if (authenticate(client) == 0){
-      modifyList(* clientIP, WHITE_LIST, WHITE_LENGTH, WHITE_COUNT); 
+  // Client not in whitelist
+  if (whitelisted == 0){
+    if (authenticate(client) == 1){
+      delay(1);
+      modifyList(clientIP, WHITE_LIST, WHITE_LENGTH, WHITE_COUNT);
     }
     else {
-      modifyList(* clientIP, BLACK_LIST, BLACK_LENGTH, BLACK_COUNT);
+      delay(1);
+      modifyList(clientIP, BLACK_LIST, BLACK_LENGTH, BLACK_COUNT);
       return;
     }
   }
@@ -74,6 +81,10 @@ void loop()
     val = 1; // Will write LED high
   else if (req.indexOf("/led/1") != -1)
     val = 0; // Will write LED low
+  else if (req.indexOf("/blacklist/clear") != -1)
+    clearList(BLACK_LIST, BLACK_LENGTH);
+  else if (req.indexOf("/whitelist/clear") != -1)
+    clearList(WHITE_LIST, WHITE_LENGTH);
   
   // Set GPIO5 according to the request
   if (val >= 0)
@@ -90,13 +101,15 @@ void loop()
   {
     s += "LED is now ";
     s += (val)?"off":"on ";
-    s += "<br> <a href=/> home </a>";
+    s += "<br> <a href=/> home </a><br>";
   }
   else
   {
     s += "Welcome to the IoT using the ESP8266 Thing Dev Board <br>";
     s += "Turn an LED <a href=/led/1> On </a> or <a href=/led/0> Off </a> <br>";
   }
+  s += "<br> <a href=/blacklist/clear> Clear blacklist </a>";
+  s += "<br> <a href=/whitelist/clear> Clear whitelist </a>";
   s += "</html>\n";
 
   // Send the response to the client
@@ -108,30 +121,60 @@ void loop()
   // when the function returns and 'client' object is detroyed
 }
 
-int checkList(char remoteIP, String list, const int lenList){
-  for (int i=0;i<=(lenList-1);i++){
-    if (remoteIP==list[i]) {
+/*
+ * Input: <client IP> <list> <list size>
+ * Output: 1 if <client IP> is in <list>
+ *         0 if <client IP> not in <list>
+ */
+int checkList(char * clientIP, char ** list, const int lenList){
+  for (int i=0;i<lenList;i++){
+    // strcmp(char* str1, char* str2) returns 0 if str1 == str2
+    if (strcmp(list[i], clientIP) == 0) {
       return 1;
     }
   }
   return 0;
 }
 
+/*
 char * convertIP(String strIP){
+  Serial.println(strIP);
   char charBuf[17];
-  unsigned int len = 17;
+  unsigned int len = sizeof(charBuf);
   strIP.toCharArray(charBuf,len);
   return charBuf;
 }
+*/
 
-void modifyList(char remoteIP, String list, const int lenList, int counter){
+void modifyList(char * clientIP, char ** list, const int lenList, int counter){
   if (counter >= lenList) {
     counter = 0;
   }
-  char charBuf[16];
-//  list[counter] = remoteIP.toCharArray(charBuf, 16);
-  list[counter] = remoteIP;
+  list[counter] = (char *)calloc(16, sizeof(char));
+  list[counter] = clientIP;
   counter++;
+  printList(list, lenList);
+}
+
+/*
+ * Clear out list memory
+ */
+void clearList(char ** list, const int lenList){
+  free(list);
+  for(int i = 0; i < lenList; i++){
+    list[i] = (char *)calloc(16, sizeof(char));
+  }
+}
+
+/*
+ * Prints all non-null list entries
+ */
+void printList(char ** list, const int lenList){
+  for(int i = 0; i < lenList; i++){
+    if(list[i] != NULL){
+      Serial.println(list[i]);
+    }
+  }
 }
 
 int authenticate(WiFiClient client){
@@ -157,10 +200,23 @@ int authenticate(WiFiClient client){
     delay(1);
     String req = client.readStringUntil('\r');
     Serial.println(req);
-    if (req.indexOf("submit?username=NotAdmin&password=NotDefault") != -1){
+    Serial.println(attempts);
+    Serial.println("Client disonnected");
+    if (req.indexOf("submit?username=" + USERNAME + "&password=" + PASSWORD) != -1){
+      String s = "HTTP/1.1 200 OK\r\n";
+      s += "Content-Type: text/html\r\n\r\n";  
+      s += "<!DOCTYPE HTML>\r\n<html>\r\n";
+      s += "<h1> Your client has been authenticated </h1>";
+      s += "</html>";
+      client.flush();
+      client.print(s);
+      delay(1);
+      Serial.println("Client Whitelisted");
       return 1;
     }
     attempts++;
+
+    // Send message after 3 failed attempts
     if (attempts > MAX_ATTEMPTS){
       String s = "HTTP/1.1 200 OK\r\n";
       s += "Content-Type: text/html\r\n\r\n";  
@@ -170,12 +226,10 @@ int authenticate(WiFiClient client){
       client.flush();
       client.print(s);
       delay(1);
-      Serial.println("Client disonnected");
+      Serial.println("Client Blacklisted");
       return 0;
     }
   }
-
-  
 }
 
 void connectWiFi()
@@ -230,5 +284,5 @@ void initHardware()
   Serial.begin(9600);
   pinMode(LED_PIN, OUTPUT);
   digitalWrite(LED_PIN, HIGH);
-
+  WiFi.persistent(false);
 }
